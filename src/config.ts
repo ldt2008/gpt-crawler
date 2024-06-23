@@ -33,6 +33,12 @@ export const configSchema = z.object({
    */
   selector: z.string().optional(),
   /**
+   * Selector to grab the inner text from
+   * @example ".docs-builder-container"
+   * @default ""
+   */
+  contentSelector: z.string().optional(),
+  /**
    * Don't crawl more than this many pages
    * @default 50
    */

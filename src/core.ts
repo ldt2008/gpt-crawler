@@ -64,22 +64,32 @@ export async function crawl(config: Config) {
             `Crawling: Page ${pageCounter} / ${config.maxPagesToCrawl} - URL: ${request.loadedUrl}...`,
           );
 
+          let selector : string;
+          if (request.loadedUrl == config.url){
+            selector = config.selector ?? "body";
+            log.info(`Selector: ${selector}`)
+          }
+          else{
+            selector = config.contentSelector ?? "body";
+            log.info(`Content Selector: ${selector}`)
+          }
           // Use custom handling for XPath selector
           if (config.selector) {
             if (config.selector.startsWith("/")) {
               await waitForXPath(
                 page,
-                config.selector,
+                selector,
                 config.waitForSelectorTimeout ?? 1000,
               );
             } else {
-              await page.waitForSelector(config.selector, {
+
+              await page.waitForSelector(selector, {
                 timeout: config.waitForSelectorTimeout ?? 1000,
               });
             }
           }
 
-          const html = await getPageHtml(page, config.selector);
+          const html = await getPageHtml(page, config.contentSelector);
 
           // Save results as JSON to ./storage/datasets/default
           await pushData({ title, url: request.loadedUrl, html });
@@ -138,19 +148,24 @@ export async function crawl(config: Config) {
       }),
     );
 
-    const isUrlASitemap = /sitemap.*\.xml$/.test(config.url);
+    try{
+      const isUrlASitemap = /sitemap.*\.xml$/.test(config.url);
 
-    if (isUrlASitemap) {
-      const listOfUrls = await downloadListOfUrls({ url: config.url });
+      if (isUrlASitemap) {
+        const listOfUrls = await downloadListOfUrls({ url: config.url });
 
-      // Add the initial URL to the crawling queue.
-      await crawler.addRequests(listOfUrls);
+        // Add the initial URL to the crawling queue.
+        await crawler.addRequests(listOfUrls);
 
-      // Run the crawler
-      await crawler.run();
-    } else {
-      // Add first URL to the queue and start the crawl.
-      await crawler.run([config.url]);
+        // Run the crawler
+        await crawler.run();
+      } else {
+        // Add first URL to the queue and start the crawl.
+        await crawler.run([config.url]);
+      }
+    }finally {
+      // Ensure the browser is closed after the crawl.
+      await crawler.teardown();
     }
   }
 }
